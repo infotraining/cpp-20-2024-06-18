@@ -108,22 +108,26 @@ TEST_CASE("SizedContainer - concept")
 
 ////////////////////////////////////////////////////////////////////////
 
-template <typename M>
-concept KeyTyped = requires {
-    typename M::key_type;
-};
+namespace Alternative_1
+{
 
-template <typename M>
-concept IndexableWithKey = KeyTyped<M> && requires(M& m, M::key_type idx) {
-    { m[idx] };
-};
+    template <typename M>
+    concept KeyTyped = requires {
+        typename M::key_type;
+    };
 
-template <typename C>
-concept Indexable = IndexableWithKey<C> || requires(C& c, size_t idx) {
-    { c[idx] };
-};
+    template <typename M>
+    concept IndexableWithKey = KeyTyped<M> && requires(M& m, M::key_type idx) {
+        { m[idx] };
+    };
 
-namespace Alternative
+    template <typename C>
+    concept Indexable = IndexableWithKey<C> || requires(C& c, size_t idx) {
+        { c[idx] };
+    };
+} // namespace Alternative_1
+
+inline namespace Alternative2
 {
     template <typename M>
     concept KeyTyped = requires {
@@ -150,7 +154,7 @@ namespace Alternative
         c[index];
     };
 
-} // namespace Alternative
+} // namespace Alternative2
 
 TEST_CASE("Indexable - concept")
 {
@@ -168,7 +172,7 @@ TEST_CASE("Indexable - concept")
     }
 }
 
-template<typename T>
+template <typename T>
 concept IndexableContainer = SizedContainer<T> && Indexable<T>;
 
 TEST_CASE("IndexableContainer - concept")
@@ -221,8 +225,7 @@ TEST_CASE("container concepts")
 // TODO: add constraints to the algorithm
 
 template <typename TRng>
-    requires std::ranges::range<TRng> && 
-        std::default_initializable<std::ranges::range_value_t<TRng>>
+    requires std::ranges::range<TRng> && std::default_initializable<std::ranges::range_value_t<TRng>>
 void zero(TRng& rng)
 {
     using TValue = std::ranges::range_value_t<TRng>;
@@ -254,4 +257,3 @@ TEST_CASE("zero")
         CHECK(evil_vec_bool == std::vector{false, false, false});
     }
 }
-
