@@ -58,6 +58,11 @@ concept Shape = requires(const T& obj)
 // clang-format on
 
 // TODO: Add concept ShapeWithColor that subsumes Shape and requires getters/setters for color
+template <typename T>
+concept ShapeWithColor = Shape<T> && requires(T obj, Color color) {
+    obj.set_color(color);
+    { obj.get_color() } noexcept -> std::same_as<Color>;
+};
 
 static_assert(Shape<Rect>);
 static_assert(Shape<ColorRect>);
@@ -66,6 +71,13 @@ template <Shape T>
 void render(T& shp)
 {
     std::cout << "render<Shape T>\n";
+    shp.draw();
+}
+
+template <ShapeWithColor T>
+void render(T& shp)
+{
+    shp.set_color(Color{0, 0, 0});
     shp.draw();
 }
 
@@ -79,3 +91,4 @@ TEST_CASE("concept subsumation")
     render(r);
     render(cr);
 }
+

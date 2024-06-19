@@ -23,6 +23,10 @@ TEST_CASE("safe comparing integral numbers")
                 return a < b;
         };
 
+        auto cmp_by_less_ints = [](std::integral auto a, std::integral auto b) {
+            return std::cmp_less(a, b);
+        };
+
         CHECK(cmp_by_less(x, y));
         CHECK(cmp_by_less("abc"s, "def"s));
     }

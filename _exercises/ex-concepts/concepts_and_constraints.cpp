@@ -45,129 +45,189 @@ IndexableContainer concept
 
 constexpr static bool TODO = false;
 
-// template <typename I>
-// concept Iterator = TODO;
+template <typename T>
+concept Iterator = requires(T it) {
+    *it;
+    { ++it } -> std::same_as<T&>;
+    it++;
+    it == it;
+    it != it;
+};
+
+namespace Alternative
+{
+    template <typename T>
+    concept Iterator = std::equality_comparable<T> && requires(T it) {
+        *it;
+        { ++it } -> std::same_as<T&>;
+        it++;
+    };
+} // namespace Alternative
 
 TEST_CASE("Iterator - concept")
 {
-    // uncomment when concept is implemented
-    // static_assert(Iterator<std::vector<int>::iterator>);
-    // static_assert(Iterator<std::vector<int>::const_iterator>);
-    // static_assert(Iterator<std::list<int>::iterator>);
-    // static_assert(Iterator<int*>);
-    // static_assert(Iterator<const int*>);
+    static_assert(Iterator<std::vector<int>::iterator>);
+    static_assert(Iterator<std::vector<int>::const_iterator>);
+    static_assert(Iterator<std::list<int>::iterator>);
+    static_assert(Iterator<int*>);
+    static_assert(Iterator<const int*>);
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 template <typename Container>
-concept StdContainer = TODO;
+concept StdContainer = requires(Container& ct) {
+    { std::begin(ct) } -> Iterator;
+    { std::end(ct) } -> std::same_as<decltype(std::begin(ct))>;
+};
 
 TEST_CASE("StdContainer - concept")
 {
-    // uncomment when concept is implemented
-    // static_assert(StdContainer<std::vector<int>>);
-    // static_assert(StdContainer<std::list<int>>);
-    // static_assert(StdContainer<int[10]>);
-    // static_assert(StdContainer<std::string>);
-    // static_assert(StdContainer<std::forward_list<int>>);
+    static_assert(StdContainer<std::vector<int>>);
+    static_assert(StdContainer<std::list<int>>);
+    static_assert(StdContainer<int[10]>);
+    static_assert(StdContainer<std::string>);
+    static_assert(StdContainer<std::forward_list<int>>);
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 template <typename Container>
-concept SizedContainer = TODO;
+concept SizedContainer = StdContainer<Container> && requires(const Container& c) {
+    { std::size(c) } -> std::convertible_to<size_t>; // check std::convertible_to<decltype(std::size(c)), size_t>
+};
 
 TEST_CASE("SizedContainer - concept")
 {
     // uncomment when concept is implemented
-    // static_assert(SizedContainer<std::vector<int>>);
-    // static_assert(SizedContainer<int[10]>);
-    // static_assert(SizedContainer<std::string>);
-    // static_assert(!SizedContainer<std::forward_list<int>>);
+    static_assert(SizedContainer<std::vector<int>>);
+    static_assert(SizedContainer<int[10]>);
+    static_assert(SizedContainer<std::string>);
+    static_assert(!SizedContainer<std::forward_list<int>>);
 }
 
 ////////////////////////////////////////////////////////////////////////
 
+template <typename M>
+concept KeyTyped = requires {
+    typename M::key_type;
+};
+
+template <typename M>
+concept IndexableWithKey = KeyTyped<M> && requires(M& m, M::key_type idx) {
+    { m[idx] };
+};
+
 template <typename C>
-concept Indexable = TODO;
+concept Indexable = IndexableWithKey<C> || requires(C& c, size_t idx) {
+    { c[idx] };
+};
+
+namespace Alternative
+{
+    template <typename M>
+    concept KeyTyped = requires {
+        typename M::key_type;
+    };
+
+    template <typename T>
+    struct Index
+    {
+        using type = size_t;
+    };
+
+    template <KeyTyped T>
+    struct Index<T>
+    {
+        using type = typename T::key_type;
+    };
+
+    template <typename T>
+    using Index_t = typename Index<T>::type;
+
+    template <typename C>
+    concept Indexable = requires(C&& c, Index_t<C> index) {
+        c[index];
+    };
+
+} // namespace Alternative
 
 TEST_CASE("Indexable - concept")
 {
-    // uncomment when concept is implemented
-    // static_assert(Indexable<std::vector<int>>);
-    // static_assert(Indexable<int[10]>);
-    // static_assert(Indexable<std::string>);
-    // static_assert(Indexable<std::unique_ptr<int[]>>);
-    // static_assert(!Indexable<std::forward_list<int>>);
-    // static_assert(!Indexable<std::list<int>>);
-    // static_assert(Indexable<std::map<int, std::string>>);
+    static_assert(Indexable<std::vector<int>>);
+    static_assert(Indexable<int[10]>);
+    static_assert(Indexable<std::string>);
+    static_assert(Indexable<std::unique_ptr<int[]>>);
+    static_assert(!Indexable<std::forward_list<int>>);
+    static_assert(!Indexable<std::list<int>>);
+    static_assert(Indexable<std::map<int, std::string>>);
 
     SECTION("extra case - for ambitious")
     {
-        // static_assert(Indexable<std::map<std::string, std::string>>);  // EXTRA
+        static_assert(Indexable<std::map<std::string, std::string>>); // EXTRA
     }
 }
 
-template <typename C>
-concept IndexableContainer = TODO;
+template<typename T>
+concept IndexableContainer = SizedContainer<T> && Indexable<T>;
 
 TEST_CASE("IndexableContainer - concept")
 {
-    // uncomment when concept is implemented
-    // static_assert(IndexableContainer<std::vector<int>>);
-    // static_assert(!IndexableContainer<std::list<int>>);
-    // static_assert(!IndexableContainer<std::set<int>>);
-    // static_assert(IndexableContainer<std::map<int, std::string>>);
-    // static_assert(IndexableContainer<std::unordered_map<int, int>>);
-    // static_assert(IndexableContainer<std::vector<bool>>);
-    // static_assert(IndexableContainer<std::string>);
-    // static_assert(IndexableContainer<int[256]>);
+    static_assert(IndexableContainer<std::vector<int>>);
+    static_assert(!IndexableContainer<std::list<int>>);
+    static_assert(!IndexableContainer<std::set<int>>);
+    static_assert(IndexableContainer<std::map<int, std::string>>);
+    static_assert(IndexableContainer<std::unordered_map<int, int>>);
+    static_assert(IndexableContainer<std::vector<bool>>);
+    static_assert(IndexableContainer<std::string>);
+    static_assert(IndexableContainer<int[256]>);
 }
 
 // uncomment when concept is implemented
-// void print_all(const StdContainer auto& container)
-// {
-//     std::cout << "void print_all(const StdContainer auto& container)\n";
+void print_all(const StdContainer auto& container)
+{
+    std::cout << "void print_all(const StdContainer auto& container)\n";
 
-//     for (const auto& item : container)
-//     {
-//         std::cout << item << " ";
-//     }
-//     std::cout << "\n";
-// }
+    for (const auto& item : container)
+    {
+        std::cout << item << " ";
+    }
+    std::cout << "\n";
+}
 
 // uncomment when concept is implemented
-// void print_all(const IndexableContainer auto& container)
-// {
-//     std::cout << "void print_all(const IndexableContainer auto& container)\n";
+void print_all(const IndexableContainer auto& container)
+{
+    std::cout << "void print_all(const IndexableContainer auto& container)\n";
 
-//     for (size_t i = 0; i < std::size(container); ++i)
-//     {
-//         std::cout << container[i] << " ";
-//     }
-//     std::cout << "\n";
-// }
+    for (size_t i = 0; i < std::size(container); ++i)
+    {
+        std::cout << container[i] << " ";
+    }
+    std::cout << "\n";
+}
 
 TEST_CASE("container concepts")
 {
     // uncomment when concept is implemented
-    // std::vector vec = {1, 2, 3, 4};
-    // print_all(vec);
+    std::vector vec = {1, 2, 3, 4};
+    print_all(vec);
 
-    // std::list lst{1, 2, 3};
-    // print_all(lst);
+    std::list lst{1, 2, 3};
+    print_all(lst);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
 // TODO: add constraints to the algorithm
 
 template <typename TRng>
+    requires std::ranges::range<TRng> && 
+        std::default_initializable<std::ranges::range_value_t<TRng>>
 void zero(TRng& rng)
 {
     using TValue = std::ranges::range_value_t<TRng>;
 
-    for(auto&& item : rng)
+    for (auto&& item : rng)
         item = TValue{};
 }
 
@@ -182,7 +242,7 @@ TEST_CASE("zero")
 
     SECTION("list<std::string>")
     {
-        std::list<std::string> lst = { "one", "two", "three" };
+        std::list<std::string> lst = {"one", "two", "three"};
         zero(lst);
         CHECK(lst == std::list{""s, ""s, ""s});
     }
@@ -194,3 +254,4 @@ TEST_CASE("zero")
         CHECK(evil_vec_bool == std::vector{false, false, false});
     }
 }
+
