@@ -4,6 +4,7 @@
 #include <ranges>
 #include <string>
 #include <vector>
+#include <map>
 
 using namespace std::literals;
 
@@ -12,23 +13,36 @@ TEST_CASE("ranges", "[ranges]")
     auto data = helpers::create_numeric_dataset<20>(42);
     helpers::print(data, "data");
 
-    std::vector words = {"one"s, "two"s, "three"s, "four"s, "five"s, "six"s, "seven"s, "eight"s, "nine"s, "ten"s, 
-                         "eleven"s, "twelve"s, "thirteen"s, "fourteen"s, "fifteen"s, "sixteen"s, "seventeen"s, "eighteen"s, "nineteen"s, "twenty"s};
+    std::vector words = {"one"s, "two"s, "three"s, "four"s, "five"s, "six"s, "seven"s, "eight"s, "nine"s, "ten"s,
+        "eleven"s, "twelve"s, "thirteen"s, "fourteen"s, "fifteen"s, "sixteen"s, "seventeen"s, "eighteen"s, "nineteen"s, "twenty"s};
     helpers::print(words, "words");
 
     SECTION("algorithms")
     {
-        // TODO
+        std::sort(words.begin(), words.end());
+        std::ranges::sort(words, std::greater{});
+        CHECK(std::ranges::is_sorted(words, std::greater{}));
+
+        std::vector<int> negative_numbers;
+        std::ranges::copy_if(data, std::back_inserter(negative_numbers), 
+            [](int n) { return n < 0; });
+        helpers::print(negative_numbers, "negative_numbers");
     }
 
     SECTION("projections")
     {
-        // TODO        
-    }
+        //std::ranges::sort(words, [](const auto& a, const auto& b) { return a.size() < b.size(); });
+        //std::ranges::sort(words, std::greater{}, /*projection*/ [](const auto& s) { return s.size(); });
+        std::ranges::sort(words, std::greater{}, /*projection*/ std::ranges::size);
+        helpers::print(words, "words by length");
+    }//
 
     SECTION("concepts & tools")
     {
-        // TODO
+        std::vector<int> vec;
+
+        using T = std::ranges::range_value_t<decltype(vec)>;
+        static_assert(std::same_as<T, int>);
     }
 }
 
@@ -45,9 +59,29 @@ TEST_CASE("sentinels", "[ranges]")
 {
     std::vector data = {2, 3, 4, 1, 5, 42, 6, 7, 8, 9, 10};
 
+    auto pos = std::ranges::find(data.begin(), std::unreachable_sentinel, 42);
+    CHECK(*pos == 42);
+
     // TODO - sort range [begin; 42) in descending order
+    auto sentinel = EndValue<42>{};
+    std::ranges::sort(data.begin(), sentinel); 
+
+    EndValue<'\0'> null_term;
+    auto& txt = "acbgdef\0ajdhfgajsdhfgkasdjhfg"; // const char(&txt)[30]
+    std::string str;
+    std::ranges::copy(std::ranges::begin(txt), null_term, std::back_inserter(str));
 
     helpers::print(data, "data");
+}
+
+TEST_CASE("counted_iterator")
+{
+    std::vector data = {2, 3, 4, 1, 5, 42, 6, 7, 8, 9, 10};
+
+    int target[5];
+
+    std::ranges::copy(std::counted_iterator{data.begin(), 5}, std::default_sentinel, std::ranges::begin(target));
+    std::ranges::copy(std::views::counted(data.begin(), 5), std::ranges::begin(target));
 }
 
 TEST_CASE("views")
@@ -56,33 +90,82 @@ TEST_CASE("views")
 
     SECTION("all")
     {
+        auto all_items = std::views::all(data);
+        helpers::print(all_items, "all_items");
     }
 
     SECTION("subrange - iterator & sentinel as a view")
     {
+        auto& txt = "acbgdef\0ajdhfgajsdhfgkasdjhfg"; // const char(&txt)[30]
+        auto token = std::ranges::subrange(std::ranges::begin(txt), EndValue<'\0'>{});
+        helpers::print(token, "token");
     }
 
     SECTION("counted")
-    {        
+    {
+        auto head_3 = std::views::counted(data.begin(), 3);
+        helpers::print(head_3, "head_3");
     }
 
     SECTION("iota")
     {
+        auto gen = std::views::iota(1);
+
+        auto it = gen.begin();
+
+        std::cout << *it << "\n";
+        ++it;
+        std::cout << *it << "\n";        
     }
 
     SECTION("pipes |")
     {
+        auto items = std::views::iota(1) 
+            | std::views::take(10) 
+            | std::views::transform([](int x) { return x * x; })
+            | std::views::filter([](int x) { return x % 2 == 0; })
+            | std::views::reverse;
+
+        for(const auto& item : items)
+        {
+            std::cout << item << " ";
+        }
+        std::cout << "\n";
+    }
+
+    SECTION("keys - values")
+    {
+        std::map<int, std::string> dict = { {1, "one"}, {2, "two" } };
+
+        helpers::print(std::views::keys(dict), "keys");
+        helpers::print(std::views::values(dict), "values");
+        helpers::print(std::views::elements<1>(dict), "values");
     }
 }
 
+void print_all(std::ranges::view auto coll)
+{
+    for(const auto& item : coll)
+    {
+        std::cout << item << " ";
+    }
+    std::cout << "\n";
+}
+
 TEST_CASE("views - reference semantics")
-{    
-    std::vector data = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+{
+    std::vector data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
     auto evens_view = data | std::views::filter([](int i) { return i % 2 == 0; });
+    print_all(evens_view);
+    print_all(std::views::all(data));
+
     helpers::print(data, "data");
 
-    // TODO - set all even numbers to 0 using evens_view
+    for(auto&& item : evens_view)
+    {
+        item = 0;
+    }
 
     helpers::print(data, "data");
 }
