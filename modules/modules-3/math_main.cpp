@@ -6,6 +6,8 @@ import Math; // importing module Math
 
 int main()
 {
+    //auto v = Math::Primes::get_value();
+
     std::cout << "check if 13 is prime: " << Math::Primes::is_prime(13) << "\n";
     // std::cout << "check if 42 is prime: " << IsPrime{}(42) << "\n";
 
