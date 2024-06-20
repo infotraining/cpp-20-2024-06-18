@@ -148,3 +148,9 @@ TEST_CASE("memleak")
 {
     memleak_free();
 }
+
+// a.cpp
+constinit int global_x = constexpr_func(10);
+
+// b.cpp
+int global_y = global_x;
