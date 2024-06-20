@@ -84,6 +84,22 @@ TEST_CASE("counted_iterator")
     std::ranges::copy(std::views::counted(data.begin(), 5), std::ranges::begin(target));
 }
 
+TEST_CASE("common view")
+{
+    std::vector data = {2, 3, 4, 1, 5, 42, 6, 7, 8, 9, 10};
+
+    std::ranges::subrange head(std::counted_iterator{data.begin(), 5}, std::default_sentinel);
+
+    for(auto it = head.begin(); it != head.end(); ++it)
+    {
+        std::cout << *it << " ";
+    }
+    std::cout << "\n";
+    
+    auto harmonized_head = std::ranges::common_view(head);
+    std::vector<int> target(harmonized_head.begin(), harmonized_head.end());
+}
+
 TEST_CASE("views")
 {
     std::vector data = {2, 3, 4, 1, 5, 42, 6, 7, 8, 9, 10};
@@ -124,13 +140,16 @@ TEST_CASE("views")
             | std::views::take(10) 
             | std::views::transform([](int x) { return x * x; })
             | std::views::filter([](int x) { return x % 2 == 0; })
-            | std::views::reverse;
+            | std::views::reverse
+            | std::views::common;
 
         for(const auto& item : items)
         {
             std::cout << item << " ";
-        }
+        }    
         std::cout << "\n";
+
+        std::vector<int> target(items.begin(), items.end()); // copy view to vector
     }
 
     SECTION("keys - values")
@@ -161,11 +180,45 @@ TEST_CASE("views - reference semantics")
     print_all(std::views::all(data));
 
     helpers::print(data, "data");
+}
 
-    for(auto&& item : evens_view)
+std::vector<std::string_view> tokenize(std::string_view text, auto separator = ' ')
+{
+    auto tokens = text 
+        | std::views::split(separator) 
+        | std::views::transform([](auto token) { return std::string_view(token.begin(), token.end()); });
+ 
+    std::vector<std::string_view> tokens_sv(tokens.begin(), tokens.end());
+
+    return tokens_sv;
+}
+
+template <typename T>
+std::vector<std::span<T>> tokenize(std::span<T> text, auto separator)
+{
+    using Token = std::span<T>;
+
+    std::vector<Token> tokens;
+
+    for (auto&& rng : text | std::views::split(separator))
     {
-        item = 0;
+        tokens.emplace_back(rng);
     }
 
-    helpers::print(data, "data");
+    return tokens;
+}
+
+TEST_CASE("split")
+{
+    std::string str = "abc,def,ghi";
+
+    auto tokens = tokenize(str, ',');
+
+    helpers::print(tokens, "tokens");
+
+    auto span_tokens = tokenize(std::span{str}, ',');
+
+    span_tokens[1][0] = 'Z';
+
+    std::cout << "str: " << str << "\n";
 }
