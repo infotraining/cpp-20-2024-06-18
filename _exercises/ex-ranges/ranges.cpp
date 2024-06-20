@@ -82,5 +82,5 @@ TEST_CASE("Exercise - ranges")
 
     auto expected_result = {"one"s, "two"s, "three"s, "four"s, "five"s, "six"s};
 
-    CHECK(std::ranges::equal(result, expected_result));
+    CHECK(std::ranges::equal(result, expected_result));    
 }

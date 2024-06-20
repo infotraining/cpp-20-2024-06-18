@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -101,4 +102,101 @@ TEST_CASE("member function with auto")
 
 TEST_CASE("templates & lambda expressions")
 {
+}
+
+/////////////////////////////////////////////////////
+// NTTP
+
+template <double Factor, typename T>
+auto scale(T x)
+{
+    return x * Factor;
+}
+
+TEST_CASE("NTTP")
+{
+    CHECK(scale<2.0>(8) == 16);
+    CHECK(scale<3.14>(10) == Catch::Approx(31.4));
+}
+
+/////////////////////////////////////////////
+
+struct Tax
+{
+    double value;
+
+    constexpr Tax(double v) : value{v}
+    {}
+};
+
+template <Tax Vat_v>
+constexpr auto calc_gross_price(double net_price)
+{
+    return net_price + net_price * Vat_v.value;
+}
+
+TEST_CASE("struct as NTTP")
+{
+    constexpr Tax vat_pl{0.23};
+    constexpr Tax vat_ger{0.19};
+
+    CHECK(calc_gross_price<vat_pl>(100.0) == 123.0);
+    CHECK(calc_gross_price<vat_ger>(100.0) == 119.0);    
+}
+
+template <size_t N>
+struct Str
+{
+    char text[N];
+
+    constexpr Str(const char(&str)[N])
+    {
+        std::copy(str, str+N, text);
+    }
+
+    auto operator<=>(const Str&) const = default;
+
+    friend std::ostream& operator<<(std::ostream& out, const Str& str)
+    {
+        out << str.text;
+
+        return out;
+    }
+};
+
+
+template <Str Name_v>
+class Logger
+{
+public:
+    void log(std::string_view msg)
+    {
+        std::cout << Name_v << " logger: " << msg << "\n";
+    }
+};
+
+TEST_CASE("string as NTTP")
+{
+    Logger<"main"> logger1;
+    Logger<"backup"> logger2;
+
+    logger1.log("Start");
+    logger2.log("Start");
+}
+
+//////////////////////////////////////////////////////////
+// lambda as NTTP
+
+template <std::invocable auto GetVat>
+constexpr double calculate_gross_price(double price)
+{
+    return price + price * GetVat();
+}
+
+TEST_CASE("NTTP + lambda")
+{
+    CHECK(calculate_gross_price<[]{ return 0.23; }>(100.0) == 123.0);
+
+    constexpr static auto vat_ger = []{ return 0.19; };
+    CHECK(calculate_gross_price<vat_ger>(100.0) == 119.0);
 }
